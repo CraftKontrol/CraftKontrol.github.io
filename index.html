@@ -589,16 +589,16 @@ When answering questions:
             this.style.height = Math.min(this.scrollHeight, 150) + 'px';
         });
 
-        // Load API key from localStorage
+        // Load API key from sessionStorage (more secure than localStorage for sensitive data)
         const apiKeyInput = document.getElementById('apiKey');
-        const savedApiKey = localStorage.getItem('mistralApiKey');
+        const savedApiKey = sessionStorage.getItem('mistralApiKey');
         if (savedApiKey) {
             apiKeyInput.value = savedApiKey;
         }
 
-        // Save API key to localStorage when changed
+        // Save API key to sessionStorage when changed (clears when browser tab is closed)
         apiKeyInput.addEventListener('change', function() {
-            localStorage.setItem('mistralApiKey', this.value);
+            sessionStorage.setItem('mistralApiKey', this.value);
         });
 
         function handleKeyDown(event) {
@@ -703,6 +703,12 @@ When answering questions:
             }
 
             const data = await response.json();
+            
+            // Validate API response structure
+            if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+                throw new Error('Invalid response from API. Please try again.');
+            }
+            
             return data.choices[0].message.content;
         }
 
@@ -728,9 +734,19 @@ When answering questions:
         }
 
         function formatMessage(content) {
-            // Convert markdown-style formatting to HTML
-            let formatted = content
-                // Code blocks
+            // First escape HTML to prevent XSS
+            const escapeHtml = (text) => {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+            
+            // Escape the content first
+            let formatted = escapeHtml(content);
+            
+            // Then apply safe markdown-style formatting
+            formatted = formatted
+                // Code blocks (already escaped, safe to wrap in tags)
                 .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
                 // Inline code
                 .replace(/`([^`]+)`/g, '<code>$1</code>')
